@@ -11,7 +11,7 @@ FOLDER = 'midi'
 FILES_NUM = 5
 sequence_length = 100
 EPOCH = 10
-MODEL_FILE_NAME = FOLDER + 'Model_Seq_' + 100 + 'Files_' + 5 + 'EPOCH_' + EPOCH
+MODEL_FILE_NAME = FOLDER + '_Model_Seq' + str(sequence_length) + '_Files' + str(FILES_NUM) + '_Epoch' + str(EPOCH)
 
 notes = []
 durations = []
