@@ -37,7 +37,7 @@ for file in glob.glob(FOLDER +"/*.mid")[:FILES_NUM]:
 
 oneTrackNotes = []
 oneTrackDurations = []
-for file in glob.glob(FOLDER +"/" + PATTERN_FILE + "mid"):
+for file in glob.glob(FOLDER +"/" + PATTERN_FILE + ".mid"):
     print(file)
     midi = converter.parse(file)
     notes_to_parse = None
