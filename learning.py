@@ -8,14 +8,14 @@ from keras.callbacks import ModelCheckpoint
 from keras.layers import Dense, Dropout, LSTM, Activation, Reshape
 
 FOLDER = 'midi'
-FILES_NUM = 5
 sequence_length = 100
+FILES_NUM = 5
 EPOCH = 10
 MODEL_FILE_NAME = FOLDER + '_Model_Seq' + str(sequence_length) + '_Files' + str(FILES_NUM) + '_Epoch' + str(EPOCH)
 
 notes = []
 durations = []
-for file in glob.glob(FOLDER +"/*.mid")[:FILES_NUM]:
+for file in sorted(glob.glob(FOLDER +"/*.mid"))[:FILES_NUM]:
     print(file)
     midi = converter.parse(file)
     notes_to_parse = None

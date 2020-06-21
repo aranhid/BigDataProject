@@ -17,7 +17,11 @@ PATTERN_FILE = 'beet27m3'
 
 notes = []
 durations = []
-for file in glob.glob(FOLDER +"/*.mid")[:FILES_NUM]:
+
+filesInDirectory = sorted(glob.glob(FOLDER +"/*.mid"))
+selectedFiles = filesInDirectory[:FILES_NUM]
+
+for file in selectedFiles:
     print(file)
     midi = converter.parse(file)
     notes_to_parse = None
@@ -37,22 +41,21 @@ for file in glob.glob(FOLDER +"/*.mid")[:FILES_NUM]:
 
 oneTrackNotes = []
 oneTrackDurations = []
-for file in glob.glob(FOLDER +"/" + PATTERN_FILE + ".mid"):
-    print(file)
-    midi = converter.parse(file)
-    notes_to_parse = None
-    parts = instrument.partitionByInstrument(midi)
-    if parts:
-        notes_to_parse = parts.parts[0].recurse()
-    else:
-        notes_to_parse = midi.flat.notes
-    for element in notes_to_parse:
-        if isinstance(element, note.Note):
-            oneTrackNotes.append(str(element.pitch))
-            oneTrackDurations.append(str(element.duration.type))
-        elif isinstance(element, chord.Chord):
-            oneTrackNotes.append('.'.join(str(n) for n in element.normalOrder))
-            oneTrackDurations.append(element.duration.type)
+print("Random file: ", selectedFiles[numpy.random.randint(0, len(selectedFiles)-1)])
+midi = converter.parse(selectedFiles[numpy.random.randint(0, len(selectedFiles)-1)])
+notes_to_parse = None
+parts = instrument.partitionByInstrument(midi)
+if parts:
+    notes_to_parse = parts.parts[0].recurse()
+else:
+    notes_to_parse = midi.flat.notes
+for element in notes_to_parse:
+    if isinstance(element, note.Note):
+        oneTrackNotes.append(str(element.pitch))
+        oneTrackDurations.append(str(element.duration.type))
+    elif isinstance(element, chord.Chord):
+        oneTrackNotes.append('.'.join(str(n) for n in element.normalOrder))
+        oneTrackDurations.append(element.duration.type)
 
 # Получаем названия всех нот
 pitchnames = sorted(set(item for item in notes))
@@ -61,12 +64,15 @@ durationnames = sorted(set(item for item in durations))
 note_to_int = dict((note, number) for number, note in enumerate(pitchnames))
 duration_to_int = dict((duration, number) for number, duration in enumerate(durationnames))
 network_input = []
+track_network_input = []
 network_output = []
 # Создаём входные последовательности нот и соответствующие выходы
-for i in range(0, len(oneTrackNotes) - sequence_length + 1, 1):
-    sequence_in = list(zip(oneTrackNotes[i:i + sequence_length], oneTrackDurations[i:i+sequence_length]))
-    sequence_out = list(zip(oneTrackNotes[i + sequence_length: i + 2 * sequence_length], oneTrackDurations[i + sequence_length: i + 2 * sequence_length]))
+for i in range(0, len(oneTrackNotes) - sequence_length, 1):
+    track_sequence_in = list(zip(oneTrackNotes[i:i + sequence_length], oneTrackDurations[i:i+sequence_length]))
+    sequence_in = list(zip(notes[i:i + sequence_length], durations[i:i+sequence_length]))
+    sequence_out = list(zip(notes[i + sequence_length: i + 2 * sequence_length], durations[i + sequence_length: i + 2 * sequence_length]))
     if len(sequence_in) == len(sequence_out):
+        track_network_input.append([(note_to_int[char], duration_to_int[duration]) for char, duration in track_sequence_in])
         network_input.append([(note_to_int[char], duration_to_int[duration]) for char, duration in sequence_in])
         network_output.append([(note_to_int[char], duration_to_int[duration]) for char, duration in sequence_out])
 n_patterns = len(network_input)
@@ -74,18 +80,19 @@ print(n_patterns)
 # Преобразовываем вводные данные в формат, совместимый со слоями LSTM
 network_output = np.array(network_output)
 network_input = numpy.reshape(network_input, (n_patterns, sequence_length, 2))
+track_network_input = numpy.reshape(track_network_input, (n_patterns, sequence_length, 2))
 # Нормализуем входные данные
 # n_vocab - кол-во нот
-n_vocab = max(network_input[:, :, 0].max(), network_output[:, :, 0].max()) + 1 + 1
-network_input = to_categorical(network_input, num_classes=188)
+n_vocab = max(network_input[:, :, 0].max(), network_output[:, :, 0].max()) + 1
+track_network_input = to_categorical(track_network_input, num_classes=n_vocab)
 #network_output = to_categorical(network_output)
 
 model = load_model('models/' + MODEL_FILE_NAME + '.h5')
 
-start = numpy.random.randint(0, len(network_input)-1)
+start = numpy.random.randint(0, len(track_network_input)-1)
 int_to_note = dict((number, note) for number, note in enumerate(pitchnames))
 int_to_duration = dict((number, duration) for number, duration in enumerate(durationnames))
-pattern = network_input[start]
+pattern = track_network_input[start]
 prediction_output = []
 
 for pat in pattern:
